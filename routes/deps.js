@@ -86,7 +86,6 @@ function handle_error(res) {
     res.set(500);
     res.end('{ "error": "Cannot connect to DB",' +
             '  "email": "csardi.gabor+crandeps@gmail.com" }');
-    throw "Internal error"
 }
 
 module.exports = router;
