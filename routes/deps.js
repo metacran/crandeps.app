@@ -66,15 +66,20 @@ function do_package(res, pkg_obj, pkg) {
 	}
     }, 20)
 
-    cranq.drain = function() {
-	res.set(200)
-	res.send(JSON.stringify(deps))
-	res.end()
-    }
+    cranq.drain = function() { return_res(res, deps) }
 
     var pkg_deps = get_deps(pkg_obj)
     deps[pkg] = pkg_deps
     pkg_deps.map(function(x) { deps[x] = false; cranq.push(x) })
+
+    // In case there are no dependencies
+    if (Object.keys(deps).length == 1) { return_res(res, deps) }
+}
+
+function return_res(res, deps) {
+    res.set(200)
+    res.send(JSON.stringify(deps))
+    res.end()
 }
 
 function handle_error(res) {
