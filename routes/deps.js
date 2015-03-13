@@ -27,7 +27,7 @@ function do_query(res, pkg, ver) {
     request(url, function (error, response, body) {
 	if (error || response.statusCode != 200) { return handle_error(res); }
 	var pkg_obj = JSON.parse(body);
-	do_package(res, pkg_obj)
+	do_package(res, pkg_obj, pkg)
     })
 }
 
@@ -40,7 +40,7 @@ function get_deps(pkg_obj) {
     return deps;
 }
 
-function do_package(res, pkg_obj) {
+function do_package(res, pkg_obj, pkg) {
 
     // This will contain the results
     var deps = {}
@@ -50,7 +50,6 @@ function do_package(res, pkg_obj) {
 	    deps[task] = false
 	    callback()
 	} else {
-	    console.log(task)
 	    var url = base_url + '/' + task
 	    request(url, function(error, response, body) {
 		if (error || response.statusCode != 200) { return handle_error(res); }
@@ -73,9 +72,9 @@ function do_package(res, pkg_obj) {
 	res.end()
     }
 
-    get_deps(pkg_obj)
-	.map(function(x) { deps[x] = false; cranq.push(x) })
-
+    var pkg_deps = get_deps(pkg_obj)
+    deps[pkg] = pkg_deps
+    pkg_deps.map(function(x) { deps[x] = false; cranq.push(x) })
 }
 
 function handle_error(res) {
