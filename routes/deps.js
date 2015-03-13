@@ -42,22 +42,27 @@ function get_deps(pkg_obj) {
 
 function do_package(res, pkg_obj, pkg) {
 
-    // This will contain the results
-    var deps = {}
+    var deps = {} 		// Contains the results
+    var seen = { false: false }	// Keep track of what was queried
 
     var cranq = async.queue(function(task, callback) {
 	if (base_packages.indexOf(task) > -1) {
 	    deps[task] = false
+	    seen[task] = task
 	    callback()
 	} else {
 	    var url = base_url + '/' + task
 	    request(url, function(error, response, body) {
 		if (error || response.statusCode != 200) { return handle_error(res); }
-		var task_deps = get_deps(JSON.parse(body))
-		deps[task] = task_deps
+		var pkg_obj = JSON.parse(body)
+		var task_deps = get_deps(pkg_obj)
+		var ver = pkg_obj["Version"]
+		var pkg_ver = task + '-' + ver
+		deps[pkg_ver] = task_deps
+		seen[task] = pkg_ver
 		task_deps.map(function(x) {
-		    if (! (x in deps)) {
-			deps[x] = false
+		    if (! (x in seen)) {
+			seen[x] = false
 			cranq.push(x)
 		    }
 		})
@@ -66,17 +71,28 @@ function do_package(res, pkg_obj, pkg) {
 	}
     }, 20)
 
-    cranq.drain = function() { return_res(res, deps) }
+    cranq.drain = function() { return_res(res, deps, seen) }
 
     var pkg_deps = get_deps(pkg_obj)
-    deps[pkg] = pkg_deps
-    pkg_deps.map(function(x) { deps[x] = false; cranq.push(x) })
+    var ver = pkg_obj["Version"]
+    seen[pkg] = false
+    deps[pkg + '-' + ver] = pkg_deps
+    pkg_deps.map(function(x) { seen[x] = false; cranq.push(x) })
 
     // In case there are no dependencies
-    if (Object.keys(deps).length == 1) { return_res(res, deps) }
+    if (Object.keys(seen).length == 1) { return_res(res, deps, seen) }
 }
 
-function return_res(res, deps) {
+function return_res(res, deps, seen) {
+    var keys = Object.keys(deps);
+
+    // Need to add version numbers
+    Object.keys(deps).forEach(function(key) {
+	var value = deps[key]
+	if (value !== false) {
+	    deps[key] = value.map(function(y) { return seen[y] })
+	}
+    })
     res.set(200)
     res.send(JSON.stringify(deps))
     res.end()
