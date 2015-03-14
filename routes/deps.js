@@ -75,12 +75,13 @@ function do_package(res, pkg_obj, pkg) {
 
     var pkg_deps = get_deps(pkg_obj)
     var ver = pkg_obj["Version"]
-    seen[pkg] = false
+    seen[pkg] = pkg + '-' + ver
     deps[pkg + '-' + ver] = pkg_deps
     pkg_deps.map(function(x) { seen[x] = false; cranq.push(x) })
 
-    // In case there are no dependencies
-    if (Object.keys(seen).length == 1) { return_res(res, deps, seen) }
+    // In case there are no dependencies, 2 because we have
+    // the queried package and false: false as well.
+    if (Object.keys(seen).length == 2) { return_res(res, deps, seen) }
 }
 
 function return_res(res, deps, seen) {
