@@ -10,24 +10,32 @@ var base_packages = ["base", "compiler", "datasets", "graphics",
                      "splines", "stats", "stats4", "tcltk", "tools",
                      "utils"]
 
-var re_pkg = '\\/([\\w\\.]+)';
-var re_ver = '(?:\\/([0-9\\.]+))?';
-var re_full = new RegExp('^' + re_pkg + re_ver + '$');
+var re_pkgs = '\\/([-\\w0-9\\.,]+)';
+var re_full = new RegExp('^' + re_pkgs + '$');
 
 router.get(re_full, function(req, res) {
-    var pkg = req.params[0];
-    var ver = req.params[1];
+    var pkgs = parse_packages(req.params[0])
     res.set('Content-Type', 'application/json');
-    do_query(res, pkg, ver);
+    do_query(res, pkgs);
 });
 
-function do_query(res, pkg, ver) {
-    var url = base_url + '/' + pkg;
-    url += ver ? ('/' + ver) : '';
+function parse_packages(pkgs) {
+    var pkgs = pkgs.split(",").map(function(pkg) {
+	var pkg = pkg.split("-")
+	return pkg
+    })
+    return pkgs
+}
+
+function do_query(res, pkgs) {
+    var pkgs_str = pkgs.map(function(x) {
+	return(x.join("-"))
+    })
+    var url = base_url + '/-/versions?keys=' + JSON.stringify(pkgs_str)
     request(url, function (error, response, body) {
 	if (error || response.statusCode != 200) { return handle_error(res); }
 	var pkg_obj = JSON.parse(body);
-	do_package(res, pkg_obj, pkg)
+	do_package(res, pkg_obj)
     })
 }
 
@@ -40,7 +48,7 @@ function get_deps(pkg_obj) {
     return deps;
 }
 
-function do_package(res, pkg_obj, pkg) {
+function do_package(res, pkg_obj) {
 
     var deps = {} 		// Contains the results
     var seen = { false: false }	// Keep track of what was queried
@@ -73,15 +81,20 @@ function do_package(res, pkg_obj, pkg) {
 
     cranq.drain = function() { return_res(res, deps, seen) }
 
-    var pkg_deps = get_deps(pkg_obj)
-    var ver = pkg_obj["Version"]
-    seen[pkg] = pkg + '-' + ver
-    deps[pkg + '-' + ver] = pkg_deps
-    pkg_deps.map(function(x) { seen[x] = false; cranq.push(x) })
+    for (i in pkg_obj) {
+	var pkg = pkg_obj[i]
+	var pkg_deps = get_deps(pkg)
+	var pkg_name = pkg["Package"]
+	var pkg_ver = pkg["Version"]
+	seen[pkg_name] = pkg_name + '-' + pkg_ver
+	deps[pkg_name + '-' + pkg_ver] = pkg_deps
+	pkg_deps.map(function(x) { seen[x] = false; cranq.push(x) })
+    }
 
-    // In case there are no dependencies, 2 because we have
-    // the queried package and false: false as well.
-    if (Object.keys(seen).length == 2) { return_res(res, deps, seen) }
+    // In case there are no dependencies. The plus one is for false: false.
+    if (Object.keys(seen).length == Object.keys(pkg_obj).length + 1) {
+	return_res(res, deps, seen)
+    }
 }
 
 function return_res(res, deps, seen) {
