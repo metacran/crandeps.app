@@ -10,6 +10,10 @@ var base_packages = ["base", "compiler", "datasets", "graphics",
                      "splines", "stats", "stats4", "tcltk", "tools",
                      "utils"]
 
+var essential_dep_types = [ "Depends", "LinkingTo", "Imports" ];
+var optional_dep_types = [ "Suggests", "Enhances" ];
+var all_dep_types = essential_dep_types + optional_dep_types;
+
 var re_pkgs = '\\/([-\\w0-9\\.,]+)';
 var re_full = new RegExp('^' + re_pkgs + '$');
 
@@ -40,10 +44,12 @@ function do_query(res, pkgs) {
 }
 
 function get_deps(pkg_obj) {
-    var deps = Object.keys(pkg_obj["Depends"] || [])
-	.concat(Object.keys(pkg_obj["LinkingTo"] || []))
-	.concat(Object.keys(pkg_obj["Imports"] || []));
-    var rindex = deps. indexOf('R');
+    var deps = [];
+    for (d in essential_dep_types) {
+	var dd = essential_dep_types[d];
+	deps = deps.concat(Object.keys(pkg_obj[dd] || []));
+    }
+    var rindex = deps.indexOf('R');
     if (rindex > -1) deps.splice(rindex, 1);
     return deps;
 }
