@@ -127,8 +127,10 @@ function return_res(res, deps, seen) {
 	    for (deppkg in deps[pkg][deptype]) {
 		if (deppkg != 'R') {
 		    var deppkgver = seen[deppkg];
-		    deps[pkg][deptype][deppkgver] = deps[pkg][deptype][deppkg];
-		    delete deps[pkg][deptype][deppkg];
+		    if (deppkgver != deppkg) {
+			deps[pkg][deptype][deppkgver] = deps[pkg][deptype][deppkg];
+			delete deps[pkg][deptype][deppkg];
+		    }
 		}
 	    }
 	}
