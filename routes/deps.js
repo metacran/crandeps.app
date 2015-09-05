@@ -73,7 +73,13 @@ function do_package(res, pkg_obj, which) {
 	} else {
 	    var url = base_url + '/' + task
 	    request(url, function(error, response, body) {
-		if (error || response.statusCode != 200) { return handle_error(res); }
+		if (response.statusCode == 404) {
+		    deps[task] = null
+		    seen[task] = task
+		    return callback()
+		} else if (error || response.statusCode != 200) {
+		    return handle_error(res);
+		}
 		var pkg_obj = JSON.parse(body)
 		var task_deps = get_deps(pkg_obj, which2)
 		var ver = pkg_obj["Version"]
