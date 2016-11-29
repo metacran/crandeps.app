@@ -144,13 +144,12 @@ function return_res(res, deps, seen) {
 
     res.set(200)
     res.send(JSON.stringify(deps))
-    res.end()
 }
 
 function handle_error(res) {
     res.set(500);
-    res.end('{ "error": "Cannot connect to DB",' +
-            '  "email": "csardi.gabor+crandeps@gmail.com" }');
+    res.send('{ "error": "Cannot connect to DB",' +
+             '  "email": "csardi.gabor+crandeps@gmail.com" }');
 }
 
 module.exports = router;
