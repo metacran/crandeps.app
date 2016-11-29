@@ -65,6 +65,8 @@ function do_package(res, pkg_obj, which) {
 
     var which2 = which == "allall" ? "allall" : "ess"
 
+    var cancelled = false;
+
     var cranq = async.queue(function(task, callback) {
 	if (base_packages.indexOf(task) > -1) {
 	    deps[task] = false
@@ -99,7 +101,9 @@ function do_package(res, pkg_obj, which) {
 	}
     }, 20)
 
-    cranq.drain = function() { return_res(res, deps, seen) }
+    cranq.drain = function() {
+	if (!cancelled) { return_res(res, deps, seen) }
+    }
 
     for (i in pkg_obj) {
 	var pkg = pkg_obj[i]
@@ -120,7 +124,8 @@ function do_package(res, pkg_obj, which) {
 
     // In case there are no dependencies. The plus one is for false: false.
     if (Object.keys(seen).length == Object.keys(pkg_obj).length + 1) {
-	return_res(res, deps, seen)
+	cancelled = true;
+	return return_res(res, deps, seen)
     }
 }
 
