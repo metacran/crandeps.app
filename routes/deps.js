@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-var request = require('request');
+var request = require('requestretry');
 var async = require('async');
 
 var base_url = 'https://crandb.r-pkg.org';
@@ -40,11 +40,16 @@ function do_query(res, pkgs, which) {
 	return(x.join("-"))
     })
     var url = base_url + '/-/versions?keys=' + JSON.stringify(pkgs_str)
-    request(url, function (error, response, body) {
+    request(
+      { url: url,
+	maxAttempts: 200,
+	retryDelay: 500
+      },
+      function (error, response, body) {
 	if (error || response.statusCode != 200) { return handle_error(res); }
 	var pkg_obj = JSON.parse(body);
 	do_package(res, pkg_obj, which)
-    })
+      })
 }
 
 function get_deps(pkg_obj, which) {
@@ -74,7 +79,9 @@ function do_package(res, pkg_obj, which) {
 	    callback()
 	} else {
 	    var url = base_url + '/' + task
-	    request(url, function(error, response, body) {
+	    request(
+	      {url: url, maxAttempts: 200, retryDelay: 500 },
+	      function(error, response, body) {
 		if (response.statusCode == 404) {
 		    deps[task] = null
 		    seen[task] = task
