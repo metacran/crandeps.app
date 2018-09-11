@@ -72,6 +72,14 @@ function do_package(res, pkg_obj, which) {
 
     var cancelled = false;
 
+    var error_cb = function(err) {
+      if (!err) return false;	   // no error
+      if (cancelled) return false; // already errored out
+      cancelled = true;
+      handle_error(res);
+      cranq.kill();
+    }
+
     var cranq = async.queue(function(task, callback) {
 	if (base_packages.indexOf(task) > -1) {
 	    deps[task] = false
@@ -80,14 +88,14 @@ function do_package(res, pkg_obj, which) {
 	} else {
 	    var url = base_url + '/' + task
 	    request(
-	      {url: url, maxAttempts: 200, retryDelay: 500 },
+	      { url: url, maxAttempts: 200, retryDelay: 500 },
 	      function(error, response, body) {
 		if (response.statusCode == 404) {
 		    deps[task] = null
 		    seen[task] = task
 		    return callback()
 		} else if (error || response.statusCode != 200) {
-		    return handle_error(res);
+		    return callback("crandb error");
 		}
 		var pkg_obj = JSON.parse(body)
 		var task_deps = get_deps(pkg_obj, which2)
@@ -99,7 +107,7 @@ function do_package(res, pkg_obj, which) {
 		    for (var pkg in task_deps[key]) {
 			if (pkg != 'R' && ! (pkg in seen)) {
 			    seen[pkg] = false
-			    cranq.push(pkg)
+			  cranq.push(pkg, error_cb);
 			}
 		    }
 		}
@@ -109,7 +117,7 @@ function do_package(res, pkg_obj, which) {
     }, 20)
 
     cranq.drain = function() {
-	if (!cancelled) { return_res(res, deps, seen) }
+      if (!cancelled) { return_res(res, deps, seen) }
     }
 
     for (i in pkg_obj) {
@@ -123,7 +131,7 @@ function do_package(res, pkg_obj, which) {
 	    for (var pkg in pkg_deps[key]) {
 		if (pkg != 'R') {
 		    seen[pkg] = false;
-		    cranq.push(pkg);
+		    cranq.push(pkg, error_cb);
 		}
 	    }
 	}
@@ -131,8 +139,8 @@ function do_package(res, pkg_obj, which) {
 
     // In case there are no dependencies. The plus one is for false: false.
     if (Object.keys(seen).length == Object.keys(pkg_obj).length + 1) {
-	cancelled = true;
-	return return_res(res, deps, seen)
+        cancelled = true;
+        return return_res(res, deps, seen)
     }
 }
 
